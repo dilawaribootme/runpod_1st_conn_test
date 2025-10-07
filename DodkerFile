@@ -1,10 +1,17 @@
-FROM python:3.9-slim
+# Use Python base image
+FROM python:3.10-slim
 
+# Set working directory
 WORKDIR /app
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy all files
+COPY . .
 
-COPY handler.py .
+# Install RunPod SDK
+RUN pip install --no-cache-dir runpod
 
-CMD ["python", "-u", "handler.py"]
+# Expose port (optional for debugging)
+EXPOSE 8000
+
+# Start handler
+CMD ["python", "handler.py"]
