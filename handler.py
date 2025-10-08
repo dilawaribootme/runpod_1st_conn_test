@@ -14,7 +14,7 @@ import runpod
 
 
 def download_file(url, filename):
-    """Download a file from a URL to local path."""
+    """Download a file from a URL to a local path."""
     r = requests.get(url, stream=True)
     r.raise_for_status()
     with open(filename, "wb") as f:
@@ -44,12 +44,14 @@ def handler(job):
         remover = Remover(jit=jit)
         result = remover.process(image, type="rgba")
 
-        # Convert to Base64 instead of saving to disk
+        # Convert image result to Base64
+        print("Converting result to Base64...")
         buffer = io.BytesIO()
         result.save(buffer, format="PNG")
         buffer.seek(0)
         img_base64 = base64.b64encode(buffer.read()).decode("utf-8")
 
+        print("Returning Base64 response...")
         return {
             "status": "success",
             "message": "Background removed successfully",
@@ -57,6 +59,7 @@ def handler(job):
         }
 
     except Exception as e:
+        print("Error during processing:", e)
         return {"status": "error", "message": str(e)}
 
 
