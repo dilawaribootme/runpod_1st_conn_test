@@ -1,11 +1,15 @@
+import sys, types
+# ---- Patch: disable transparent_background GUI imports ----
+sys.modules["transparent_background.gui"] = types.ModuleType("transparent_background.gui")
+sys.modules["transparent_background.gui.gui"] = types.ModuleType("transparent_background.gui.gui")
+# -----------------------------------------------------------
+
 import os
 import runpod
 from PIL import Image
-import sys, types
-# Patch flet GUI import (skip it completely)
-sys.modules["transparent_background.gui"] = types.ModuleType("transparent_background.gui")
 from transparent_background import Remover
 import requests
+
 
 def download_file(url, filename):
     """Download a file from URL to local path."""
@@ -16,6 +20,7 @@ def download_file(url, filename):
             f.write(chunk)
     return filename
 
+
 def handler(job):
     job_input = job.get("input", {})
 
@@ -23,7 +28,7 @@ def handler(job):
     output_name = job_input.get("output_name", "outputfinal.png")
     jit = job_input.get("jit", False)
 
-    # If image provided as URL, download it
+    # Download if a URL is given
     if input_image.startswith("http"):
         input_image = download_file(input_image, "input.jpg")
 
@@ -46,5 +51,5 @@ def handler(job):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-runpod.serverless.start({"handler": handler})
 
+runpod.serverless.start({"handler": handler})
