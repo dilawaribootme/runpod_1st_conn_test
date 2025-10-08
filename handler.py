@@ -1,6 +1,9 @@
 import os
 import runpod
 from PIL import Image
+import sys, types
+# Patch flet GUI import (skip it completely)
+sys.modules["transparent_background.gui"] = types.ModuleType("transparent_background.gui")
 from transparent_background import Remover
 import requests
 
@@ -44,3 +47,4 @@ def handler(job):
         return {"status": "error", "message": str(e)}
 
 runpod.serverless.start({"handler": handler})
+
