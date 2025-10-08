@@ -5,14 +5,16 @@ sys.modules["transparent_background.gui.gui"] = types.ModuleType("transparent_ba
 # -----------------------------------------------------------
 
 import os
-import runpod
+import io
+import base64
+import requests
 from PIL import Image
 from transparent_background import Remover
-import requests
+import runpod
 
 
 def download_file(url, filename):
-    """Download a file from URL to local path."""
+    """Download a file from a URL to local path."""
     r = requests.get(url, stream=True)
     r.raise_for_status()
     with open(filename, "wb") as f:
@@ -24,11 +26,10 @@ def download_file(url, filename):
 def handler(job):
     job_input = job.get("input", {})
 
-    input_image = job_input.get("input_image", "check.jpg")
-    output_name = job_input.get("output_name", "outputfinal.png")
-    jit = job_input.get("jit", False)
+    input_image = job_input.get("input_image", "check.jpg")  # image path or URL
+    jit = job_input.get("jit", False)  # JIT toggle for Remover
 
-    # Download if a URL is given
+    # Download image if a URL is provided
     if input_image.startswith("http"):
         input_image = download_file(input_image, "input.jpg")
 
@@ -43,13 +44,21 @@ def handler(job):
         remover = Remover(jit=jit)
         result = remover.process(image, type="rgba")
 
-        print(f"Saving result as: {output_name}")
-        result.save(output_name)
+        # Convert to Base64 instead of saving to disk
+        buffer = io.BytesIO()
+        result.save(buffer, format="PNG")
+        buffer.seek(0)
+        img_base64 = base64.b64encode(buffer.read()).decode("utf-8")
 
-        return {"status": "success", "output": output_name}
+        return {
+            "status": "success",
+            "message": "Background removed successfully",
+            "base64": img_base64
+        }
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 
+# Start the RunPod serverless handler
 runpod.serverless.start({"handler": handler})
