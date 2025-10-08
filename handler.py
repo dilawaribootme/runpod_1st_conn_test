@@ -1,11 +1,11 @@
 import os
 import runpod
-import subprocess
-from pathlib import Path
+from PIL import Image
+from transparent_background import Remover
 import requests
 
 def download_file(url, filename):
-    """Download a file from URL to local filename."""
+    """Download a file from URL to local path."""
     r = requests.get(url, stream=True)
     r.raise_for_status()
     with open(filename, "wb") as f:
@@ -16,26 +16,31 @@ def download_file(url, filename):
 def handler(job):
     job_input = job.get("input", {})
 
-    input_video = job_input.get("input_video", "trialdu.mp4")
-    bg_video = job_input.get("bg_video", "bg.mp4")
+    input_image = job_input.get("input_image", "check.jpg")
+    output_name = job_input.get("output_name", "outputfinal.png")
+    jit = job_input.get("jit", False)
 
-    # Support URLs
-    if input_video.startswith("http"):
-        input_video = download_file(input_video, "input.mp4")
-    if bg_video.startswith("http"):
-        bg_video = download_file(bg_video, "background.mp4")
+    # If image provided as URL, download it
+    if input_image.startswith("http"):
+        input_image = download_file(input_image, "input.jpg")
 
-    command = ["python", "main_bg_remover.py"]
+    if not os.path.exists(input_image):
+        return {"status": "error", "message": f"Input file not found: {input_image}"}
+
     try:
-        print("Running background remover...")
-        subprocess.run(command, check=True)
+        print(f"Loading image: {input_image}")
+        image = Image.open(input_image).convert("RGB")
 
-        output_path = Path("last.mp4")
-        if output_path.exists():
-            return {"status": "success", "output": str(output_path)}
-        else:
-            return {"status": "error", "message": "Output video not found."}
-    except subprocess.CalledProcessError as e:
-        return {"status": "error", "message": f"Processing failed: {e}"}
+        print("Removing background...")
+        remover = Remover(jit=jit)
+        result = remover.process(image, type="rgba")
+
+        print(f"Saving result as: {output_name}")
+        result.save(output_name)
+
+        return {"status": "success", "output": output_name}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 runpod.serverless.start({"handler": handler})
