@@ -4,62 +4,52 @@ sys.modules["transparent_background.gui"] = types.ModuleType("transparent_backgr
 sys.modules["transparent_background.gui.gui"] = types.ModuleType("transparent_background.gui.gui")
 # -----------------------------------------------------------
 
-import os
 import io
 import base64
-import requests
 from PIL import Image
 from transparent_background import Remover
 import runpod
 
 
-def download_file(url, filename):
-    """Download a file from a URL to a local path."""
-    r = requests.get(url, stream=True)
-    r.raise_for_status()
-    with open(filename, "wb") as f:
-        for chunk in r.iter_content(chunk_size=8192):
-            f.write(chunk)
-    return filename
-
-
 def handler(job):
     job_input = job.get("input", {})
 
-    input_image = job_input.get("input_image", "check.jpg")  # image path or URL
-    jit = job_input.get("jit", False)  # JIT toggle for Remover
+    # Expect base64 input instead of file or URL
+    input_string = job_input.get("input_string", None)
+    jit = job_input.get("jit", False)
 
-    # Download image if a URL is provided
-    if input_image.startswith("http"):
-        input_image = download_file(input_image, "input.jpg")
-
-    if not os.path.exists(input_image):
-        return {"status": "error", "message": f"Input file not found: {input_image}"}
+    if not input_string:
+        return {"status": "error", "message": "No Base64 string provided in input_string."}
 
     try:
-        print(f"Loading image: {input_image}")
-        image = Image.open(input_image).convert("RGB")
-
-        print("Removing background...")
+        print("Initializing background remover model...")
         remover = Remover(jit=jit)
+        remover.model_name = "InSPyReNet"
+
+        # Decode Base64 → PIL Image
+        print("Decoding Base64 input...")
+        image_data = base64.b64decode(input_string)
+        image = Image.open(io.BytesIO(image_data)).convert("RGB")
+
+        # Remove background
+        print("Removing background...")
         result = remover.process(image, type="rgba")
 
-        # Convert image result to Base64
-        print("Converting result to Base64...")
+        # Encode result → Base64
         buffer = io.BytesIO()
         result.save(buffer, format="PNG")
         buffer.seek(0)
-        img_base64 = base64.b64encode(buffer.read()).decode("utf-8")
+        output_b64 = base64.b64encode(buffer.read()).decode("utf-8")
 
-        print("Returning Base64 response...")
+        print("Background removed successfully.")
         return {
             "status": "success",
-            "message": "Background removed successfully",
-            "base64": img_base64
+            "message": "Background removed successfully.",
+            "output_base64": output_b64
         }
 
     except Exception as e:
-        print("Error during processing:", e)
+        print("Error:", e)
         return {"status": "error", "message": str(e)}
 
 
